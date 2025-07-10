@@ -35,3 +35,4 @@ define('DB_PASS', '76065850');
  define('BASE_URL', '/GIMNASIO9DEL7/');
 
 }
+//configurancion de la base de datos!
