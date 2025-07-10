@@ -7,7 +7,7 @@ class UsuarioDB {
 
     private $db;
     private $table = 'usuarios';
-    private $url = 'http://localhost/GIMNASIO-MAIN/admin';
+    private $url = 'http://localhost/gimnasio9del7/admin';
     //recibe una conexión ($database) a una base de datos y la mete en $db
     public function __construct($database){
         $this->db = $database->getConexion();

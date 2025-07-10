@@ -55,3 +55,19 @@ class ContactoController {
         return $this->mensajeContactoDB->eliminarMensContacto($id);
     }
 }
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['accion'] === 'eliminar') {
+    header('Content-Type: application/json');
+    $id = $_POST['id'] ?? null;
+    if ($id) {
+        $controller = new ContactoController();
+        if ($controller->eliminarMensaje($id)) {
+            echo json_encode(['exito' => true]);
+        } else {
+            echo json_encode(['exito' => false, 'mensaje' => 'Error al eliminar']);
+        }
+    } else {
+        echo json_encode(['exito' => false, 'mensaje' => 'ID no proporcionado']);
+    }
+    exit();
+}

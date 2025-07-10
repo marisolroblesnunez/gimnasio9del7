@@ -5,15 +5,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const welcomeMessage = document.querySelector('.welcome-message');
     const backButton = document.getElementById('back-button');
     const circleItems = document.querySelectorAll('.circle-item');
+    const dynamicContent = document.getElementById('dynamic-content');
+    const dynamicSections = document.querySelectorAll('.dynamic-section');
 
     // Estado actual
     let currentSubmenu = null;
 
-    // Función para ocultar todos los submenús
-    function hideAllSubmenus() {
-        submenus.forEach(submenu => {
-            submenu.classList.add('hidden');
-        });
+    function hideAll() {
+        submenus.forEach(submenu => submenu.classList.add('hidden'));
+        dynamicSections.forEach(section => section.classList.add('hidden'));
+        dynamicContent.classList.add('hidden');
         welcomeMessage.classList.remove('hidden');
         backButton.classList.add('hidden');
         currentSubmenu = null;
@@ -21,13 +22,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Función para mostrar un submenú específico
     function showSubmenu(submenuId) {
-        hideAllSubmenus();
+        hideAll();
         const submenu = document.getElementById(submenuId);
         if (submenu) {
             submenu.classList.remove('hidden');
             welcomeMessage.classList.add('hidden');
             backButton.classList.remove('hidden');
             currentSubmenu = submenuId;
+        }
+    }
+
+    function showDynamicContent(sectionId) {
+        hideAll();
+        const section = document.getElementById(sectionId);
+        if (section) {
+            dynamicContent.classList.remove('hidden');
+            section.classList.remove('hidden');
+            welcomeMessage.classList.add('hidden');
+            backButton.classList.remove('hidden');
+            currentSubmenu = sectionId;
         }
     }
 
@@ -57,7 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Event listener para el botón de volver
     backButton.addEventListener('click', function() {
         playClickEffect();
-        hideAllSubmenus();
+        hideAll();
     });
 
     // Event listeners para los círculos de opciones
@@ -80,8 +93,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Función para manejar clics en círculos
     function handleCircleClick(option) {
-        // Crear un efecto de notificación
-        showNotification(`Has seleccionado: ${getOptionText(option)}`);
+        if (option === 'clases') {
+            loadClases();
+        } else if (option === 'entrenadores') {
+            loadEntrenadores();
+        } else if (option === 'reservas') {
+            checkUserLoginAndLoadReservas();
+        } else if (option === 'reseñas') {
+            showDynamicContent('reseñas-content');
+        } else {
+            showNotification(`Has seleccionado: ${getOptionText(option)}`);
+        }
         
         // Agregar animación de selección
         const clickedItem = document.querySelector(`[data-option="${option}"]`);
@@ -91,6 +113,192 @@ document.addEventListener('DOMContentLoaded', function() {
                 clickedItem.style.animation = 'pulse 0.5s ease-in-out';
             }, 10);
         }
+    }
+
+    // Función para verificar el estado de login y cargar las reservas
+    function checkUserLoginAndLoadReservas() {
+        fetch('api/check_session.php')
+            .then(response => response.json())
+            .then(data => {
+                if (data.logged_in) {
+                    loadReservas();
+                } else {
+                    // Redirigir al login si no está logueado
+                    window.location.href = 'admin/login.php';
+                }
+            })
+            .catch(error => {
+                console.error('Error al verificar sesión:', error);
+                showNotification('Error al verificar tu sesión. Inténtalo de nuevo.');
+            });
+    }
+
+    // Función para cargar y mostrar las clases para reserva
+    function loadReservas() {
+        const reservasContent = document.getElementById('reservas-content');
+        showDynamicContent('reservas-content');
+        reservasContent.innerHTML = '<h3>Reserva tu Clase</h3><p>Cargando clases disponibles...</p>';
+
+        fetch('api/clases.php')
+            .then(response => response.json())
+            .then(data => {
+                reservasContent.innerHTML = '<h3>Reserva tu Clase</h3>';
+                if (data.length > 0) {
+                    const clasesGrid = document.createElement('div');
+                    clasesGrid.className = 'clases-grid'; // Reutilizamos los estilos de clases
+                    
+                    data.forEach(clase => {
+                        const cupo_disponible = clase.cupo_maximo - clase.inscritos_actuales;
+                        const claseCard = document.createElement('div');
+                        claseCard.className = 'clase-card';
+                        
+                        claseCard.innerHTML = `
+                            <img src="img/${clase.imagen_url || 'default-clase.jpg'}" alt="Imagen de ${clase.nombre}">
+                            <div class="clase-card-body">
+                                <h4>${clase.nombre}</h4>
+                                <p class="clase-descripcion">${clase.descripcion}</p>
+                                <div class="clase-detalles">
+                                    <p><strong>Entrenador:</strong> ${clase.nombre_entrenador}</p>
+                                    <p><strong>Horario:</strong> ${clase.dia_semana} a las ${clase.hora.substring(0, 5)}</p>
+                                    <p><strong>Duración:</strong> ${clase.duracion_minutos} min</p>
+                                    <p><strong>Cupo:</strong> ${cupo_disponible} / ${clase.cupo_maximo}</p>
+                                </div>
+                                <button class="btn-reservar" data-id-clase="${clase.id}" ${cupo_disponible <= 0 ? 'disabled' : ''}>
+                                    ${cupo_disponible <= 0 ? 'Cupo Lleno' : 'Reservar'}
+                                </button>
+                            </div>
+                        `;
+                        clasesGrid.appendChild(claseCard);
+                    });
+                    reservasContent.appendChild(clasesGrid);
+
+                    // Añadir event listeners a los botones de reservar
+                    document.querySelectorAll('.btn-reservar').forEach(button => {
+                        button.addEventListener('click', function() {
+                            const idClase = this.getAttribute('data-id-clase');
+                            reservarClase(idClase);
+                        });
+                    });
+
+                } else {
+                    reservasContent.innerHTML += '<p>No hay clases disponibles para reservar en este momento.</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error al cargar las clases para reserva:', error);
+                reservasContent.innerHTML += '<p>Hubo un error al cargar las clases. Inténtalo de nuevo más tarde.</p>';
+            });
+    }
+
+    // Función para enviar la solicitud de reserva
+    function reservarClase(idClase) {
+        const formData = new FormData();
+        formData.append('id_clase', idClase);
+
+        fetch('api/reservar.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            showNotification(data.message);
+            if (data.success) {
+                // Si la reserva fue exitosa, recargar las clases para actualizar el cupo
+                loadReservas();
+            } else if (data.redirect) {
+                // Si se requiere login, redirigir
+                window.location.href = data.redirect;
+            }
+        })
+        .catch(error => {
+            console.error('Error al reservar clase:', error);
+            showNotification('Error de conexión al intentar reservar. Inténtalo de nuevo.');
+        });
+    }
+
+    // Función para cargar y mostrar los entrenadores desde la API
+    function loadEntrenadores() {
+        const entrenadoresContent = document.getElementById('entrenadores-content');
+        showDynamicContent('entrenadores-content');
+        entrenadoresContent.innerHTML = '<h3>Nuestros Entrenadores</h3><p>Cargando entrenadores...</p>';
+
+        fetch('api/entrenadores.php')
+            .then(response => response.json())
+            .then(data => {
+                entrenadoresContent.innerHTML = '<h3>Nuestros Entrenadores</h3>';
+                if (data.length > 0) {
+                    const entrenadoresGrid = document.createElement('div');
+                    entrenadoresGrid.className = 'entrenadores-grid';
+                    
+                    data.forEach(entrenador => {
+                        const entrenadorCard = document.createElement('div');
+                        entrenadorCard.className = 'entrenador-card';
+                        
+                        entrenadorCard.innerHTML = `
+                            <img src="img/${entrenador.foto_url || 'default-entrenador.jpg'}" alt="Foto de ${entrenador.nombre}">
+                            <div class="entrenador-card-body">
+                                <h4>${entrenador.nombre}</h4>
+                                <p class="entrenador-especialidad">${entrenador.especialidad}</p>
+                                <div class="entrenador-contacto">
+                                    <p><strong>Email:</strong> ${entrenador.email}</p>
+                                </div>
+                            </div>
+                        `;
+                        entrenadoresGrid.appendChild(entrenadorCard);
+                    });
+                    entrenadoresContent.appendChild(entrenadoresGrid);
+                } else {
+                    entrenadoresContent.innerHTML += '<p>No hay entrenadores disponibles en este momento.</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error al cargar los entrenadores:', error);
+                entrenadoresContent.innerHTML += '<p>Hubo un error al cargar los entrenadores. Inténtalo de nuevo más tarde.</p>';
+            });
+    }
+
+    // Función para cargar y mostrar las clases desde la API
+    function loadClases() {
+        const clasesContent = document.getElementById('clases-content');
+        showDynamicContent('clases-content');
+        clasesContent.innerHTML = '<h3>Nuestras Clases</h3><p>Cargando clases...</p>';
+
+        fetch('api/clases.php')
+            .then(response => response.json())
+            .then(data => {
+                clasesContent.innerHTML = '<h3>Nuestras Clases</h3>';
+                if (data.length > 0) {
+                    const clasesGrid = document.createElement('div');
+                    clasesGrid.className = 'clases-grid';
+                    
+                    data.forEach(clase => {
+                        const claseCard = document.createElement('div');
+                        claseCard.className = 'clase-card';
+                        
+                        claseCard.innerHTML = `
+                            <img src="img/${clase.imagen_url || 'default-clase.jpg'}" alt="Imagen de ${clase.nombre}">
+                            <div class="clase-card-body">
+                                <h4>${clase.nombre}</h4>
+                                <p class="clase-descripcion">${clase.descripcion}</p>
+                                <div class="clase-detalles">
+                                    <p><strong>Entrenador:</strong> ${clase.nombre_entrenador}</p>
+                                    <p><strong>Horario:</strong> ${clase.dia_semana} a las ${clase.hora.substring(0, 5)}</p>
+                                    <p><strong>Duración:</strong> ${clase.duracion_minutos} min</p>
+                                    <p><strong>Cupo:</strong> ${clase.inscritos_actuales} / ${clase.cupo_maximo}</p>
+                                </div>
+                            </div>
+                        `;
+                        clasesGrid.appendChild(claseCard);
+                    });
+                    clasesContent.appendChild(clasesGrid);
+                } else {
+                    clasesContent.innerHTML += '<p>No hay clases disponibles en este momento.</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error al cargar las clases:', error);
+                clasesContent.innerHTML += '<p>Hubo un error al cargar las clases. Inténtalo de nuevo más tarde.</p>';
+            });
     }
 
     // Función para obtener texto de la opción
@@ -181,7 +389,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Función para manejar el teclado
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' && currentSubmenu) {
-            hideAllSubmenus();
+            hideAll();
         }
     });
 
@@ -234,17 +442,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Inicialización
     console.log('PowerGym App inicializada correctamente');
-    
-    // Agregar efectos de hover adicionales a los elementos del menú
-    menuItems.forEach(item => {
-        item.addEventListener('mouseenter', function() {
-            this.style.transform = 'translateY(-5px) scale(1.05)';
-        });
-        
-        item.addEventListener('mouseleave', function() {
-            this.style.transform = 'translateY(0) scale(1)';
-        });
-    });
 });
 
 
