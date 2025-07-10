@@ -8,3 +8,4 @@ session_unset();
 //destruye la sesion
 session_destroy();
 }
+//redireccionar a la pagina de inicio
