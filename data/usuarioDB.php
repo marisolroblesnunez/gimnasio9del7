@@ -3,6 +3,9 @@
 /**
  * Se encarga de interactuar con la base de datos con la tabla libro hay que crear una clase por cada tabla en este caso solo tenemos una tabla entonces hacemos solo una clase, (clase libro db) para hacerle consultas a la base de datos.
  */
+require_once '../config/config.php';
+require_once 'enviarCorreos.php';
+
 class UsuarioDB {
 
     private $db;
@@ -263,8 +266,8 @@ public function generarToken(){
             //ejecuta la consulta
             if($stmt->execute()){
                 $mensaje = "Para restablecer tu contraseña, haz click en este enlace: $this->url/restablecer.php?token=$token";
-                //$mensaje = Correo::enviarCorreo($email, "Cliente", "Restablecer Contraseña", $mensaje);
-                $this->enviarCorreoSimulado($email, "Recuperación de contraseña", $mensaje);
+                $mensaje = Correo::enviarCorreo($email, "Cliente", "Restablecer Contraseña", $mensaje);
+                //$this->enviarCorreoSimulado($email, "Recuperación de contraseña", $mensaje);
                 $resultado = ["success" => true, "mensaje" => "Se ha enviado un enlace de recuperación a tu correo"];
             }else{
                 $resultado = ["success" => false, "mensaje" => "Error al procesar la solicitud"];
