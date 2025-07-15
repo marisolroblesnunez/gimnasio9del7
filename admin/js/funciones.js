@@ -1,5 +1,5 @@
 /**
- * Muestra una notificación emergente en la pantalla.
+ * Muestra una notificación emergente en la pantalla. vvv
  * @param {string} mensaje - El mensaje que se mostrará en la notificación.
  * @param {string} [tipo='info'] - El tipo de notificación. Puede ser 'success' (éxito), 'error', o 'info'.
  * @param {number} [duracion=3000] - La duración en milisegundos que la notificación permanecerá visible.
